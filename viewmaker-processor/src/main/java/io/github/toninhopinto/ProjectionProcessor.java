@@ -3,6 +3,7 @@ package io.github.toninhopinto;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -191,74 +192,78 @@ public class ProjectionProcessor extends AbstractProcessor {
                                                 .noneMatch(im -> m.getSimpleName().toString().contains(im)))
                                 .toList();
 
-                var main = fieldProjections(packageName, potentialNewMethods.stream()
-                                .filter(m -> m.getParameters().isEmpty()
-                                                || !m.getParameters().get(0).asType().toString()
-                                                                .contains("Expression<String>"))
-                                .filter(m -> m.getParameters().isEmpty()
-                                                || !m.getParameters().get(0).asType().toString()
-                                                                .contains("Expression<Integer>"))
-                                .filter(m -> m.getParameters().isEmpty()
-                                                || !m.getParameters().get(0).asType().toString()
-                                                                .contains("Expression<Float>"))
-                                .filter(m -> m.getParameters().isEmpty()
-                                                || !m.getParameters().get(0).asType().toString()
-                                                                .contains("Expression<Boolean>"))
-                                .toList());
+                var comparableMethodsAndOverrides = findMethodsOfType(potentialNewMethods,
+                                "Expression<java.util.Comparable<", "Comparable");
+                var numberMethodsAndOverrides = findMethodsOfType(potentialNewMethods, "Number",
+                                "Number");
+                var stringMethodsAndOverrides = findMethodsOfType(potentialNewMethods, "Expression<java.lang.String>",
+                                "String");
+                var intMethodsAndOverrides = findMethodsOfType(potentialNewMethods, "Expression<java.lang.Integer>",
+                                "Integer");
+                var floatMethodsAndOverrides = findMethodsOfType(potentialNewMethods, "Expression<java.lang.Float>",
+                                "Float");
+                var booleanMethodsAndOverrides = findMethodsOfType(potentialNewMethods, "Expression<java.lang.Boolean>",
+                                "Boolean");
 
-                System.out.println("SIZE " + potentialNewMethods.size());
-                System.out.println(
-                                potentialNewMethods.stream().filter(m -> !m.getParameters().isEmpty()).toList().size());
-                var stringFieldClass = stringFieldProjection(packageName, main,
-                                potentialNewMethods.stream()
-                                                .filter(m -> {
-                                                        return !m.getParameters().isEmpty()
-                                                                        && m.getParameters().get(0).asType().toString()
-                                                                                        .contains("Expression<String>");
-                                                })
-                                                .toList());
+                var excludeFromBase = new HashSet<>();
+                excludeFromBase.addAll(comparableMethodsAndOverrides);
+                excludeFromBase.addAll(stringMethodsAndOverrides);
+                excludeFromBase.addAll(stringMethodsAndOverrides);
+                excludeFromBase.addAll(intMethodsAndOverrides);
+                excludeFromBase.addAll(floatMethodsAndOverrides);
+                excludeFromBase.addAll(booleanMethodsAndOverrides);
+                excludeFromBase.addAll(numberMethodsAndOverrides);
+                var excludeFromBaseMethods = excludeFromBase.stream().collect(Collectors.toSet());
+                var main = fieldProjections(packageName,
+                                potentialNewMethods.stream().filter(m -> !excludeFromBaseMethods.contains(m)).toList());
 
-                var intFieldClass = intFieldProjection(packageName,
+                var comparable = fieldComparableProjections(packageName, main, comparableMethodsAndOverrides);
+                var comparableNumberClass = fieldNumberComparableProjections(packageName, comparable,
+                                numberMethodsAndOverrides);
+                var numberFieldClass = fieldNumberProjections(packageName, main, numberMethodsAndOverrides);
+                var stringFieldClass = stringFieldProjection(packageName, main, stringMethodsAndOverrides);
+                var intFieldClass = intFieldProjection(packageName, main, intMethodsAndOverrides);
+                var floatFieldClass = floatFieldProjection(packageName, main, floatMethodsAndOverrides);
+                var boolFieldClass = boolFieldProjection(packageName, main, booleanMethodsAndOverrides);
+
+                return List.of(
                                 main,
-                                potentialNewMethods
-                                                .stream()
-                                                .filter(m -> {
-                                                        return !m.getParameters().isEmpty() && m.getParameters().get(0)
-                                                                        .asType().toString()
-                                                                        .contains("Expression<Integer>");
-                                                })
-                                                .toList());
+                                comparable,
+                                comparableNumberClass,
+                                numberFieldClass,
+                                stringFieldClass,
+                                intFieldClass,
+                                floatFieldClass,
+                                boolFieldClass);
+        }
 
-                var floatFieldClass = floatFieldProjection(packageName,
-                                main,
-                                potentialNewMethods
-                                                .stream()
-                                                .filter(m -> {
-                                                        return !m.getParameters().isEmpty()
-                                                                        && m.getParameters().get(0).asType().toString()
-                                                                                        .contains("Expression<Float>");
-                                                })
-                                                .toList());
-
-                var boolFieldClass = boolFieldProjection(packageName, main, potentialNewMethods
+        private List<ExecutableElement> findMethodsOfType(List<ExecutableElement> potentialNewMethods,
+                        String typeOfFirstArgument, String innerType) {
+                var stringMethods = potentialNewMethods
                                 .stream()
-                                .filter(m -> {
-                                        return !m.getParameters().isEmpty()
-                                                        && m.getParameters().get(0).asType().toString()
-                                                                        .contains("Expression<Boolean>");
-                                })
-                                .toList());
+                                .filter(m -> (!m.getParameters().isEmpty() &&
+                                                m.getParameters().get(0).asType().toString()
+                                                                .contains(typeOfFirstArgument))
+                                                ||
+                                                (!m.getTypeParameters().isEmpty() &&
+                                                                m.getTypeParameters().get(0).getBounds().toString()
+                                                                                .contains(innerType))
 
-                return List.of(main, stringFieldClass, intFieldClass, floatFieldClass, boolFieldClass);
+                                )
+                                .map(m -> m.getSimpleName().toString())
+                                .collect(Collectors.toSet());
+                return potentialNewMethods
+                                .stream()
+                                .filter(m -> stringMethods.contains(m.getSimpleName().toString()))
+                                .toList();
         }
 
         private JavaClassSource fieldProjections(String packageName, List<ExecutableElement> potentialNewMethods) {
-
                 JavaClassSource src = Roaster.create(JavaClassSource.class);
                 src.setPackage(packageName)
                                 .setPublic()
                                 .setName("FieldProjection");
-                src.addTypeVariable("T");
+                src.addTypeVariable("Y");
 
                 src.addImport("jakarta.persistence.criteria.*");
 
@@ -269,7 +274,8 @@ public class ProjectionProcessor extends AbstractProcessor {
                 constructor.addParameter("CriteriaBuilder", "builder");
                 constructor.addParameter("Expression<Y>", "expr");
                 constructor.setBody("""
-                                super(builder, expr);
+                                this.builder = builder;
+                                this.expr = expr;
                                 """);
 
                 potentialNewMethods.forEach(m -> {
@@ -293,6 +299,129 @@ public class ProjectionProcessor extends AbstractProcessor {
                 src.addMethod().setName("get").setPublic().setReturnType("Expression").setBody("""
                                 return this.expr;
                                 """);
+
+                return src;
+        }
+
+        private JavaClassSource fieldNumberComparableProjections(String packageName, JavaClassSource parent,
+                        List<ExecutableElement> methods) {
+                JavaClassSource src = Roaster.create(JavaClassSource.class);
+                src.setPackage(packageName)
+                                .setPublic()
+                                .setName("NumberComparableFieldProjection")
+                                .extendSuperType(parent);
+                var typeVar = src.addTypeVariable("N");
+                typeVar.setBounds("java.lang.Number", "java.lang.Comparable<? super N>");
+
+                src.addImport("jakarta.persistence.criteria.*");
+
+                src.addField("private CriteriaBuilder builder");
+                src.addField("private Expression<N> expr");
+
+                var constructor = src.addMethod().setConstructor(true);
+                constructor.addParameter("CriteriaBuilder", "builder");
+                constructor.addParameter("Expression<N>", "expr");
+                constructor.setBody("""
+                                super(builder, expr);
+                                """);
+
+                methods.forEach(m -> {
+                        var params = getWrappedCallParameters(m);
+                        var retType = m.getReturnType().toString().replaceFirst("\\<[A-Z]\\>", "<N>");
+                        var newMethod = src.addMethod()
+                                        .setName(m.getSimpleName().toString())
+                                        .setReturnType(retType)
+                                        .setBody("""
+                                                        return builder.%s(%s);
+                                                        """.formatted(m.getSimpleName(),
+                                                        params.wrapped.stream().collect(Collectors.joining(", "))));
+
+                        params.wrapper.forEach(p -> {
+                                newMethod.addParameter(p.asType().toString(), p.getSimpleName().toString());
+                        });
+                });
+
+                return src;
+        }
+
+        private JavaClassSource fieldNumberProjections(String packageName, JavaClassSource parent,
+                        List<ExecutableElement> methods) {
+                JavaClassSource src = Roaster.create(JavaClassSource.class);
+                src.setPackage(packageName)
+                                .setPublic()
+                                .setName("NumberFieldProjection")
+                                .extendSuperType(parent);
+                var typeVar = src.addTypeVariable("N");
+                typeVar.setBounds("java.lang.Number");
+
+                src.addImport("jakarta.persistence.criteria.*");
+
+                src.addField("private CriteriaBuilder builder");
+                src.addField("private Expression<N> expr");
+
+                var constructor = src.addMethod().setConstructor(true);
+                constructor.addParameter("CriteriaBuilder", "builder");
+                constructor.addParameter("Expression<N>", "expr");
+                constructor.setBody("""
+                                super(builder, expr);
+                                """);
+
+                methods.forEach(m -> {
+                        var params = getWrappedCallParameters(m);
+                        var retType = m.getReturnType().toString().replaceFirst("\\<[A-Z]\\>", "<N>");
+                        var newMethod = src.addMethod()
+                                        .setName(m.getSimpleName().toString())
+                                        .setReturnType(retType)
+                                        .setBody("""
+                                                        return builder.%s(%s);
+                                                        """.formatted(m.getSimpleName(),
+                                                        params.wrapped.stream().collect(Collectors.joining(", "))));
+
+                        params.wrapper.forEach(p -> {
+                                newMethod.addParameter(p.asType().toString(), p.getSimpleName().toString());
+                        });
+                });
+
+                return src;
+        }
+
+        private JavaClassSource fieldComparableProjections(String packageName, JavaClassSource parent,
+                        List<ExecutableElement> methods) {
+                JavaClassSource src = Roaster.create(JavaClassSource.class);
+                src.setPackage(packageName)
+                                .setPublic()
+                                .setName("ComparableFieldProjection")
+                                .extendSuperType(parent);
+                var typeVar = src.addTypeVariable("Y");
+                typeVar.setBounds("java.lang.Comparable<? super Y>");
+
+                src.addImport("jakarta.persistence.criteria.*");
+
+                src.addField("private CriteriaBuilder builder");
+                src.addField("private Expression<Y> expr");
+
+                var constructor = src.addMethod().setConstructor(true);
+                constructor.addParameter("CriteriaBuilder", "builder");
+                constructor.addParameter("Expression<Y>", "expr");
+                constructor.setBody("""
+                                super(builder, expr);
+                                """);
+
+                methods.forEach(m -> {
+                        var params = getWrappedCallParameters(m);
+                        var retType = m.getReturnType().toString().replaceFirst("\\<[A-Z]\\>", "<Y>");
+                        var newMethod = src.addMethod()
+                                        .setName(m.getSimpleName().toString())
+                                        .setReturnType(retType)
+                                        .setBody("""
+                                                        return builder.%s(%s);
+                                                        """.formatted(m.getSimpleName(),
+                                                        params.wrapped.stream().collect(Collectors.joining(", "))));
+
+                        params.wrapper.forEach(p -> {
+                                newMethod.addParameter(p.asType().toString(), p.getSimpleName().toString());
+                        });
+                });
 
                 return src;
         }
@@ -321,8 +450,9 @@ public class ProjectionProcessor extends AbstractProcessor {
                         var params = getWrappedCallParameters(m);
                         var newMethod = src.addMethod()
                                         .setName(m.getSimpleName().toString())
+                                        .setReturnType(m.getReturnType().toString())
                                         .setBody("""
-                                                        return builder.%s(%s)
+                                                        return builder.%s(%s);
                                                         """.formatted(m.getSimpleName(),
                                                         params.wrapped.stream().collect(Collectors.joining(", "))));
 
@@ -358,8 +488,9 @@ public class ProjectionProcessor extends AbstractProcessor {
                         var params = getWrappedCallParameters(m);
                         var newMethod = src.addMethod()
                                         .setName(m.getSimpleName().toString())
+                                        .setReturnType(m.getReturnType().toString())
                                         .setBody("""
-                                                        return builder.%s(%s)
+                                                        return builder.%s(%s);
                                                         """.formatted(m.getSimpleName(),
                                                         params.wrapped.stream().collect(Collectors.joining(", "))));
 
@@ -395,8 +526,9 @@ public class ProjectionProcessor extends AbstractProcessor {
                         var params = getWrappedCallParameters(m);
                         var newMethod = src.addMethod()
                                         .setName(m.getSimpleName().toString())
+                                        .setReturnType(m.getReturnType().toString())
                                         .setBody("""
-                                                        return builder.%s(%s)
+                                                        return builder.%s(%s);
                                                         """.formatted(m.getSimpleName(),
                                                         params.wrapped.stream().collect(Collectors.joining(", "))));
 
@@ -432,8 +564,9 @@ public class ProjectionProcessor extends AbstractProcessor {
                         var params = getWrappedCallParameters(m);
                         var newMethod = src.addMethod()
                                         .setName(m.getSimpleName().toString())
+                                        .setReturnType(m.getReturnType().toString())
                                         .setBody("""
-                                                        return builder.%s(%s)
+                                                        return builder.%s(%s);
                                                         """.formatted(m.getSimpleName(),
                                                         params.wrapped.stream().collect(Collectors.joining(", "))));
 
