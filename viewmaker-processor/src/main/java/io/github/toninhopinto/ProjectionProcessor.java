@@ -192,6 +192,7 @@ public class ProjectionProcessor extends AbstractProcessor {
                                                 .noneMatch(im -> m.getSimpleName().toString().contains(im)))
                                 .toList();
 
+                var collectionMethodsAndOverrides = findMethodsOfType(potentialNewMethods, "Collection", "Collection");
                 var comparableMethodsAndOverrides = findMethodsOfType(potentialNewMethods,
                                 "Expression<java.util.Comparable<", "Comparable");
                 var numberMethodsAndOverrides = findMethodsOfType(potentialNewMethods, "Number",
@@ -213,11 +214,13 @@ public class ProjectionProcessor extends AbstractProcessor {
                 excludeFromBase.addAll(floatMethodsAndOverrides);
                 excludeFromBase.addAll(booleanMethodsAndOverrides);
                 excludeFromBase.addAll(numberMethodsAndOverrides);
+                excludeFromBase.addAll(collectionMethodsAndOverrides);
                 var excludeFromBaseMethods = excludeFromBase.stream().collect(Collectors.toSet());
                 var main = fieldProjections(packageName,
                                 potentialNewMethods.stream().filter(m -> !excludeFromBaseMethods.contains(m)).toList());
 
                 var comparable = fieldComparableProjections(packageName, main, comparableMethodsAndOverrides);
+                var collection = fieldCollectionProjections(packageName, main, collectionMethodsAndOverrides);
                 var comparableNumberClass = fieldNumberComparableProjections(packageName, comparable,
                                 numberMethodsAndOverrides);
                 var numberFieldClass = fieldNumberProjections(packageName, main, numberMethodsAndOverrides);
@@ -229,6 +232,7 @@ public class ProjectionProcessor extends AbstractProcessor {
                 return List.of(
                                 main,
                                 comparable,
+                                collection,
                                 comparableNumberClass,
                                 numberFieldClass,
                                 stringFieldClass,
@@ -372,6 +376,45 @@ public class ProjectionProcessor extends AbstractProcessor {
                         var newMethod = src.addMethod()
                                         .setName(m.getSimpleName().toString())
                                         .setReturnType(retType)
+                                        .setBody("""
+                                                        return builder.%s(%s);
+                                                        """.formatted(m.getSimpleName(),
+                                                        params.wrapped.stream().collect(Collectors.joining(", "))));
+
+                        params.wrapper.forEach(p -> {
+                                newMethod.addParameter(p.asType().toString(), p.getSimpleName().toString());
+                        });
+                });
+
+                return src;
+        }
+
+        private JavaClassSource fieldCollectionProjections(String packageName, JavaClassSource parent,
+                        List<ExecutableElement> methods) {
+                JavaClassSource src = Roaster.create(JavaClassSource.class);
+                src.setPackage(packageName)
+                                .setPublic()
+                                .setName("CollectionFieldProjection");
+                src.addTypeVariable("E");
+                src.setSuperType(parent.getCanonicalName().toString() + "<Collection<E>>");
+
+                src.addImport("jakarta.persistence.criteria.*");
+
+                src.addField("private CriteriaBuilder builder");
+                src.addField("private Expression<Collection<E>> expr");
+
+                var constructor = src.addMethod().setConstructor(true);
+                constructor.addParameter("CriteriaBuilder", "builder");
+                constructor.addParameter("Expression<Collection<E>>", "expr");
+                constructor.setBody("""
+                                super(builder, expr);
+                                """);
+
+                methods.forEach(m -> {
+                        var params = getWrappedCallParameters(m);
+                        var newMethod = src.addMethod()
+                                        .setName(m.getSimpleName().toString())
+                                        .setReturnType(m.getReturnType().toString())
                                         .setBody("""
                                                         return builder.%s(%s);
                                                         """.formatted(m.getSimpleName(),
