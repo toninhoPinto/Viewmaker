@@ -1,3 +1,4 @@
 io/github/toninhopinto/ProjectionProcessor$ParameterHelper.class
+io/github/toninhopinto/PerProjectionClassCreator.class
 io/github/toninhopinto/ProjectionProcessor.class
 META-INF/services/javax.annotation.processing.Processor

@@ -105,6 +105,7 @@ public class ProjectionProcessor extends AbstractProcessor {
                                                                 "construct",
                                                                 "array",
                                                                 "notify",
+                                                                "treat",
                                                                 "selectCase" // not sure
                                 );
 
@@ -345,8 +346,7 @@ public class ProjectionProcessor extends AbstractProcessor {
                                                                                                                                 return builder.%s(%s);
                                                                                                                                 """
                                                                                                                                 .formatted(m.getSimpleName(),
-                                                                                                                                                                params.wrapped.stream()
-                                                                                                                                                                                                .collect(Collectors.joining(", "))));
+                                                                                                                                        String.join(", ", params.wrapped)));
 
                                                                 params.wrapper.forEach(p -> {
                                                                                 newMethod.addParameter(p.asType()
@@ -381,23 +381,25 @@ public class ProjectionProcessor extends AbstractProcessor {
                                                                 super(builder, expr);
                                                                 """);
 
-                                methods.forEach(m -> {
-                                                var params = getWrappedCallParameters(m, "Collection");
-                                                var newMethod = src.addMethod()
-                                                                                .setName(m.getSimpleName().toString())
-                                                                                .setReturnType(m.getReturnType().toString())
-                                                                                .setBody("""
-                                                                                                                return builder.%s(%s);
-                                                                                                                """
-                                                                                                                .formatted(m.getSimpleName(),
-                                                                                                                                                params.wrapped.stream().collect(Collectors
-                                                                                                                                                                                .joining(", "))));
 
-                                                params.wrapper.forEach(p -> {
-                                                                newMethod.addParameter(p.asType().toString(), p
-                                                                                                .getSimpleName()
-                                                                                                .toString());
-                                                });
+                                methods.forEach(m -> {
+                                    var params = getWrappedCallParameters(m, "Collection");
+                                    if (params.wrapped.stream().anyMatch(n -> n.contains("expr"))) {
+                                        var newMethod = src.addMethod()
+                                                .setName(m.getSimpleName().toString())
+                                                .setReturnType(m.getReturnType().toString())
+                                                .setBody("""
+                                                        return builder.%s(%s);
+                                                        """
+                                                        .formatted(m.getSimpleName(),
+                                                                String.join(", ", params.wrapped)));
+
+                                        params.wrapper.forEach(p -> {
+                                            newMethod.addParameter(p.asType().toString(), p
+                                                    .getSimpleName()
+                                                    .toString());
+                                        });
+                                    }
                                 });
 
                                 return src;
@@ -604,9 +606,8 @@ public class ProjectionProcessor extends AbstractProcessor {
                                 var seenParams = new HashSet<>();
                                 methods.forEach(m -> {
                                                 var params = getWrappedCallParameters(m, "String");
-                                                if (!seenParams.contains(m.getSimpleName().toString()
-                                                                                + params.wrapped.toString())) {
-                                                                seenParams.add(m.getSimpleName().toString()
+                                                if (!seenParams.contains(m.getSimpleName() + params.wrapped.toString())) {
+                                                                seenParams.add(m.getSimpleName()
                                                                                                 + params.wrapped.toString());
                                                                 var newMethod = src.addMethod()
                                                                                                 .setName(m.getSimpleName().toString())
