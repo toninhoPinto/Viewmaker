@@ -21,24 +21,22 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
-import javax.lang.model.element.RecordComponentElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.MirroredTypeException;
-import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
-import javax.tools.JavaFileObject;
 
 import org.jboss.forge.roaster.Roaster;
 import org.jboss.forge.roaster.model.source.JavaClassSource;
 import org.jboss.forge.roaster.model.source.MethodSource;
 
 import com.google.auto.service.AutoService;
+
+import static io.github.toninhopinto.PerProjectionClassCreator.projectionClassCreator;
 
 @SupportedAnnotationTypes("io.github.toninhopinto.Project")
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
@@ -61,115 +59,33 @@ public class ProjectionProcessor extends AbstractProcessor {
 
                 @Override
                 public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-                                for (Element e : roundEnv.getElementsAnnotatedWith(Project.class)) {
-                                                if (e.getKind() != ElementKind.RECORD) {
-                                                                messager.printMessage(Diagnostic.Kind.ERROR,
-                                                                                                "@Project can only be used on records",
-                                                                                                e);
-                                                                continue;
-                                                }
-                                                printer(createFieldProjectionClasses(utils.getPackageOf(e)
-                                                                                .getQualifiedName().toString()));
-                                                printer(List.of(projectionClassCreator((TypeElement) e)));
-                                }
-                                return true;
+                    for (Element e : roundEnv.getElementsAnnotatedWith(Project.class)) {
+                        if (e.getKind() != ElementKind.RECORD) {
+                            messager.printMessage(Diagnostic.Kind.ERROR,
+                                    "@Project can only be used on records",
+                                    e);
+                            continue;
+                        }
+                        printer(createFieldProjectionClasses(utils.getPackageOf(e)
+                                .getQualifiedName().toString()));
+                        printer(List.of(projectionClassCreator((TypeElement) e, utils, typeUtils)));
+                    }
+                    return true;
                 }
 
-                private JavaClassSource projectionClassCreator(TypeElement e) {
-                                var annotatedClass = e.getSimpleName().toString();
-                                var originalEntity = getProjectType(e);
-                                var packageName = utils.getPackageOf(e).getQualifiedName().toString();
-
-                                var constructorArguments = e.getRecordComponents().stream()
-                                                                .map(this::tupleConstructorArgument)
-                                                                .collect(Collectors.joining(", "));
-                                var selectArguments = e.getRecordComponents().stream()
-                                                                .map(this::selectTuple)
-                                                                .collect(Collectors.joining(", "));
-
-                                JavaClassSource src = Roaster.create(JavaClassSource.class);
-                                src.setPackage(packageName)
-                                                                .setPublic()
-                                                                .setName(annotatedClass + "Projection");
-
-                                src.addAnnotation().setName("ApplicationScoped");
-
-                                src.addImport(List.class);
-                                src.addImport("jakarta.persistence.Tuple");
-                                src.addImport("jakarta.persistence.criteria.CriteriaQuery");
-                                src.addImport("jakarta.persistence.criteria.CriteriaBuilder");
-                                src.addImport("jakarta.enterprise.context.ApplicationScoped");
-                                src.addImport("jakarta.persistence.criteria.Root");
-                                src.addImport("jakarta.persistence.criteria.Path");
-
-                                src.addField("private Root<%s> root;".formatted(originalEntity));
-                                src.addField("private CriteriaBuilder builder;");
-
-                                var fields = e.getRecordComponents();
-                                for (int i = 0; i < fields.size(); i++) {
-                                                var field = fields.get(i);
-
-                                                var type = boxedType(field);
-                                                var simpleName = typeUtils.asElement(type).getSimpleName().toString();
-                                                src.addMethod()
-                                                                                .setPublic()
-                                                                                .setReturnType("%sFieldProjection"
-                                                                                                                .formatted(simpleName))
-                                                                                .setName(field.getSimpleName().toString())
-                                                                                .setBody("""
-                                                                                                                return new %sFieldProjection(builder, root.<%s>get("%s"));
-                                                                                                                """
-                                                                                                                .formatted(simpleName,
-                                                                                                                                                type,
-                                                                                                                                                field.getSimpleName().toString()));
+                private void printer(List<JavaClassSource> futureFiles) {
+                    futureFiles
+                            .forEach(ff -> {
+                                try {
+                                    var file = filer.createSourceFile(ff.getCanonicalName());
+                                    try (Writer w = file.openWriter()) {
+                                        w.write(ff.toString());
+                                    }
+                                } catch (IOException e) {
+                                    messager.printMessage(Diagnostic.Kind.ERROR,
+                                            "Failed to generate source code");
                                 }
-
-                                src.addMethod()
-                                                                .setConstructor(false)
-                                                                .setStatic(true)
-                                                                .setPublic()
-                                                                .setReturnType("List<%s>".formatted(annotatedClass))
-                                                                .setBody("""
-                                                                                                return tuples.stream()
-                                                                                                .map(tuple -> new %s(%s))
-                                                                                                .toList();
-                                                                                                """
-                                                                                                .formatted(annotatedClass, constructorArguments))
-                                                                .setName("projectResult")
-                                                                .addParameter("List<Tuple>", "tuples");
-
-                                src.addMethod()
-                                                                .setReturnType("MovieShortProjection")
-                                                                .setName("root")
-                                                                .setBody("""
-                                                                                                root = this.root;
-                                                                                                return this;
-                                                                                                """)
-                                                                .addParameter("(Root<Movie>", "root");
-
-                                src.addMethod()
-                                                                .setPublic()
-                                                                .setReturnType("CriteriaQuery<Tuple>")
-                                                                .setBody("""
-                                                                                                builder = cb;
-                                                                                                var query = builder.createTupleQuery();
-                                                                                                return query.select(builder.tuple(%s));
-                                                                                                """
-                                                                                                .formatted(selectArguments))
-                                                                .setName("buildProjectedQuery")
-                                                                .addParameter("CriteriaBuilder", "cb");
-
-                                return src;
-                }
-
-                private TypeMirror boxedType(RecordComponentElement component) {
-                                var type = component.asType();
-
-                                if (type.getKind().isPrimitive()) {
-                                                return typeUtils.boxedClass((PrimitiveType) type).asType();
-                                }
-
-                                return typeUtils.erasure(type);
+                            });
                 }
 
                 private List<JavaClassSource> createFieldProjectionClasses(String packageName) {
@@ -783,38 +699,6 @@ public class ProjectionProcessor extends AbstractProcessor {
                                 }
                 }
 
-                private String selectTuple(RecordComponentElement component) {
-                                return "root.get(\"%s\").alias(\"%s\")".formatted(component.getSimpleName(),
-                                                                component.getSimpleName());
-                }
 
-                private String getProjectType(Element e) {
-                                try {
-                                                return e.getAnnotation(Project.class).type().getCanonicalName();
-                                } catch (MirroredTypeException ex) {
-                                                return ex.getTypeMirror().toString();
-                                }
-                }
 
-                private String tupleConstructorArgument(RecordComponentElement component) {
-                                var type = typeUtils.erasure(component.asType());
-                                return "tuple.get(\"%s\", %s.class)".formatted(component.getSimpleName(), type);
-                }
-
-                private void printer(List<JavaClassSource> futureFiles) {
-                                futureFiles
-                                                                .forEach(ff -> {
-                                                                                JavaFileObject file;
-                                                                                try {
-                                                                                                file = filer.createSourceFile(ff.getCanonicalName());
-                                                                                                try (Writer w = file.openWriter()) {
-                                                                                                                w.write(ff.toString());
-                                                                                                }
-                                                                                } catch (IOException e) {
-                                                                                                messager.printMessage(Diagnostic.Kind.ERROR,
-                                                                                                                                "Failed to generate source code");
-                                                                                }
-                                                                });
-                }
-
-}
+   }
