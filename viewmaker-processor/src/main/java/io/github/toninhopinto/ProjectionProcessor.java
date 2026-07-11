@@ -127,19 +127,19 @@ public class ProjectionProcessor extends AbstractProcessor {
         findMethodsOfType(potentialNewMethods, "Expression<java.lang.Boolean>", "Boolean");
 
     var excludeFromBase = new HashSet<>();
-    excludeFromBase.addAll(comparableMethods);
-    excludeFromBase.addAll(stringMethods);
-    excludeFromBase.addAll(intMethods);
-    excludeFromBase.addAll(floatMethods);
-    excludeFromBase.addAll(booleanMethods);
-    excludeFromBase.addAll(numberMethods);
-    excludeFromBase.addAll(collectionMethods);
+    excludeFromBase.addAll(comparableMethods.stream().map(n->n.getSimpleName().toString()).toList());
+    excludeFromBase.addAll(stringMethods.stream().map(n->n.getSimpleName().toString()).toList());
+    excludeFromBase.addAll(intMethods.stream().map(n->n.getSimpleName().toString()).toList());
+    excludeFromBase.addAll(floatMethods.stream().map(n->n.getSimpleName().toString()).toList());
+    excludeFromBase.addAll(booleanMethods.stream().map(n->n.getSimpleName().toString()).toList());
+    excludeFromBase.addAll(numberMethods.stream().map(n->n.getSimpleName().toString()).toList());
+    excludeFromBase.addAll(collectionMethods.stream().map(n->n.getSimpleName().toString()).toList());
     var excludeFromBaseMethods = excludeFromBase.stream().collect(Collectors.toSet());
 
     var main =
         fieldProjections(
             packageName,
-            potentialNewMethods.stream().filter(m -> !excludeFromBaseMethods.contains(m)).toList());
+            potentialNewMethods.stream().filter(m -> !excludeFromBaseMethods.contains(m.getSimpleName().toString())).toList());
 
     var comparable = fieldComparableProjections(packageName, main, comparableMethods);
     var collection = fieldCollectionProjections(packageName, main, collectionMethods);
@@ -207,10 +207,11 @@ public class ProjectionProcessor extends AbstractProcessor {
         m -> {
           var params = getWrappedCallParameters(m, null);
           if (params.wrapped.stream().anyMatch(p -> p.contains("expr"))) {
+            var retType = m.getReturnType().toString().replaceFirst("\\<[A-Z]\\>", "<Y>");
               var newM =
                   src.addMethod()
                   .setName(m.getSimpleName().toString())
-                  .setReturnType(m.getReturnType().toString())
+                  .setReturnType(retType)
                   .setBody(
                           """
                           return builder.%s(%s);
@@ -218,7 +219,6 @@ public class ProjectionProcessor extends AbstractProcessor {
                           .formatted(
                               m.getSimpleName(),
                               params.wrapped.stream().collect(Collectors.joining(", "))));
-              m.getTypeParameters().forEach(tp -> addTypeVariable("Y", newM, tp));
 
               params.wrapper.forEach(
                       p -> newM.addParameter(p.asType().toString(), p.getSimpleName().toString()));
@@ -665,10 +665,7 @@ public class ProjectionProcessor extends AbstractProcessor {
     return "^jakarta\\.persistence\\.criteria\\.Expression<.*%s>".formatted(boundType);
   }
 
-  private void addTypeVariable(String classBound, MethodSource<JavaClassSource> method, TypeParameterElement tp) {
-      if (tp.getSimpleName().toString().equals(classBound)) {
-          return;
-      }
+  private void addTypeVariable(MethodSource<JavaClassSource> method, TypeParameterElement tp) {
       var typeVariable = method.addTypeVariable(tp.getSimpleName().toString());
 
       var bounds =
@@ -676,9 +673,5 @@ public class ProjectionProcessor extends AbstractProcessor {
           .filter(bound -> !"java.lang.Object".equals(bound.toString()))
           .map(Object::toString)
           .collect(Collectors.toList());
-
-      if (!bounds.isEmpty()) {
-          typeVariable.setBounds(bounds.toArray(String[]::new));
-      }
   }
 }
