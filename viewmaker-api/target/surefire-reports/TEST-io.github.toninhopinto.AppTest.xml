@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.1" name="io.github.toninhopinto.AppTest" time="0.019" tests="1" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.1" name="io.github.toninhopinto.AppTest" time="0.015" tests="1" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="21"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -12,7 +12,7 @@
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="user.country" value="GB"/>
     <property name="sun.boot.library.path" value="/Users/ctw01724-admin/.sdkman/candidates/java/21.0.9-zulu/zulu-21.jdk/Contents/Home/lib"/>
-    <property name="sun.java.command" value="/Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api/target/surefire/surefirebooter-20260709100257474_3.jar /Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api/target/surefire 2026-07-09T10-02-57_322-jvmRun1 surefire-20260709100257474_1tmp surefire_0-20260709100257474_2tmp"/>
+    <property name="sun.java.command" value="/Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api/target/surefire/surefirebooter-20260711223005345_3.jar /Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api/target/surefire 2026-07-11T22-30-05_302-jvmRun1 surefire-20260711223005345_1tmp surefire_0-20260711223005345_2tmp"/>
     <property name="http.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="/Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api/target/test-classes:/Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api/target/classes:/Users/ctw01724-admin/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.11.0/junit-jupiter-api-5.11.0.jar:/Users/ctw01724-admin/.m2/repository/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/Users/ctw01724-admin/.m2/repository/org/junit/platform/junit-platform-commons/1.11.0/junit-platform-commons-1.11.0.jar:/Users/ctw01724-admin/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/ctw01724-admin/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.11.0/junit-jupiter-params-5.11.0.jar:/Users/ctw01724-admin/.m2/repository/com/google/auto/service/auto-service/1.1.1/auto-service-1.1.1.jar:/Users/ctw01724-admin/.m2/repository/com/google/auto/service/auto-service-annotations/1.1.1/auto-service-annotations-1.1.1.jar:/Users/ctw01724-admin/.m2/repository/com/google/auto/auto-common/1.2.1/auto-common-1.2.1.jar:/Users/ctw01724-admin/.m2/repository/com/google/guava/guava/32.0.1-jre/guava-32.0.1-jre.jar:/Users/ctw01724-admin/.m2/repository/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar:/Users/ctw01724-admin/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar:/Users/ctw01724-admin/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar:/Users/ctw01724-admin/.m2/repository/org/checkerframework/checker-qual/3.33.0/checker-qual-3.33.0.jar:/Users/ctw01724-admin/.m2/repository/com/google/errorprone/error_prone_annotations/2.18.0/error_prone_annotations-2.18.0.jar:/Users/ctw01724-admin/.m2/repository/com/google/j2objc/j2objc-annotations/2.8/j2objc-annotations-2.8.jar:"/>
@@ -24,19 +24,19 @@
     <property name="java.home" value="/Users/ctw01724-admin/.sdkman/candidates/java/21.0.9-zulu/zulu-21.jdk/Contents/Home"/>
     <property name="file.separator" value="/"/>
     <property name="basedir" value="/Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api"/>
-    <property name="java.vm.compressedOopsMode" value="Zero based"/>
+    <property name="java.vm.compressedOopsMode" value="Non-zero based"/>
     <property name="line.separator" value="&#10;"/>
     <property name="java.vm.specification.vendor" value="Oracle Corporation"/>
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="apple.awt.application.name" value="ForkedBooter"/>
-    <property name="surefire.real.class.path" value="/Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api/target/surefire/surefirebooter-20260709100257474_3.jar"/>
+    <property name="surefire.real.class.path" value="/Users/ctw01724-admin/Documents/personal/viewmaker/viewmaker-api/target/surefire/surefirebooter-20260711223005345_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="ftp.nonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.runtime.version" value="21.0.9+10-LTS"/>
     <property name="user.name" value="ctw01724-admin"/>
     <property name="stdout.encoding" value="UTF-8"/>
     <property name="path.separator" value=":"/>
-    <property name="os.version" value="26.5.1"/>
+    <property name="os.version" value="26.5.2"/>
     <property name="java.runtime.name" value="OpenJDK Runtime Environment"/>
     <property name="file.encoding" value="UTF-8"/>
     <property name="java.vm.name" value="OpenJDK 64-Bit Server VM"/>
@@ -58,5 +58,5 @@
     <property name="socksNonProxyHosts" value="local|*.local|169.254/16|*.169.254/16"/>
     <property name="java.class.version" value="65.0"/>
   </properties>
-  <testcase name="shouldAnswerWithTrue" classname="io.github.toninhopinto.AppTest" time="0.009"/>
+  <testcase name="shouldAnswerWithTrue" classname="io.github.toninhopinto.AppTest" time="0.008"/>
 </testsuite>
