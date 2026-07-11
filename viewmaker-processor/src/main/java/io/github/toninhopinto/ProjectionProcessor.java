@@ -170,16 +170,12 @@ public class ProjectionProcessor extends AbstractProcessor {
                 m ->
                     (!m.getParameters().isEmpty()
                             && m.getParameters()
-                                .get(0)
-                                .asType()
-                                .toString()
-                                .contains(typeOfFirstArgument))
+                                .stream()
+                                .anyMatch(p -> p.asType().toString().contains(typeOfFirstArgument)))
                         || (!m.getTypeParameters().isEmpty()
                             && m.getTypeParameters()
-                                .get(0)
-                                .getBounds()
-                                .toString()
-                                .contains(innerType)))
+                                .stream()
+                                .anyMatch(p -> p.getBounds().toString().contains(innerType))))
             .toList();
   }
 
