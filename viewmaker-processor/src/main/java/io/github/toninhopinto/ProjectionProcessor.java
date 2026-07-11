@@ -112,44 +112,44 @@ public class ProjectionProcessor extends AbstractProcessor {
                         .noneMatch(im -> m.getSimpleName().toString().contains(im)))
             .toList();
 
-    var collectionMethodsAndOverrides =
+    var collectionMethods =
         findMethodsOfType(potentialNewMethods, "Collection", "Collection");
-    var comparableMethodsAndOverrides =
+    var comparableMethods =
         findMethodsOfType(potentialNewMethods, "Expression<java.util.Comparable<", "Comparable");
-    var numberMethodsAndOverrides = findMethodsOfType(potentialNewMethods, "Number", "Number");
-    var stringMethodsAndOverrides =
+    var numberMethods = findMethodsOfType(potentialNewMethods, "Number", "Number");
+    var stringMethods =
         findMethodsOfType(potentialNewMethods, "Expression<java.lang.String>", "String");
-    var intMethodsAndOverrides =
+    var intMethods =
         findMethodsOfType(potentialNewMethods, "Expression<java.lang.Integer>", "Integer");
-    var floatMethodsAndOverrides =
+    var floatMethods =
         findMethodsOfType(potentialNewMethods, "Expression<java.lang.Float>", "Float");
-    var booleanMethodsAndOverrides =
+    var booleanMethods =
         findMethodsOfType(potentialNewMethods, "Expression<java.lang.Boolean>", "Boolean");
 
     var excludeFromBase = new HashSet<>();
-    excludeFromBase.addAll(comparableMethodsAndOverrides);
-    excludeFromBase.addAll(stringMethodsAndOverrides);
-    excludeFromBase.addAll(stringMethodsAndOverrides);
-    excludeFromBase.addAll(intMethodsAndOverrides);
-    excludeFromBase.addAll(floatMethodsAndOverrides);
-    excludeFromBase.addAll(booleanMethodsAndOverrides);
-    excludeFromBase.addAll(numberMethodsAndOverrides);
-    excludeFromBase.addAll(collectionMethodsAndOverrides);
+    excludeFromBase.addAll(comparableMethods);
+    excludeFromBase.addAll(stringMethods);
+    excludeFromBase.addAll(intMethods);
+    excludeFromBase.addAll(floatMethods);
+    excludeFromBase.addAll(booleanMethods);
+    excludeFromBase.addAll(numberMethods);
+    excludeFromBase.addAll(collectionMethods);
     var excludeFromBaseMethods = excludeFromBase.stream().collect(Collectors.toSet());
+
     var main =
         fieldProjections(
             packageName,
             potentialNewMethods.stream().filter(m -> !excludeFromBaseMethods.contains(m)).toList());
 
-    var comparable = fieldComparableProjections(packageName, main, comparableMethodsAndOverrides);
-    var collection = fieldCollectionProjections(packageName, main, collectionMethodsAndOverrides);
+    var comparable = fieldComparableProjections(packageName, main, comparableMethods);
+    var collection = fieldCollectionProjections(packageName, main, collectionMethods);
     var comparableNumberClass =
-        fieldNumberComparableProjections(packageName, comparable, numberMethodsAndOverrides);
-    var numberFieldClass = fieldNumberProjections(packageName, main, numberMethodsAndOverrides);
-    var stringFieldClass = stringFieldProjection(packageName, main, stringMethodsAndOverrides);
-    var intFieldClass = intFieldProjection(packageName, main, intMethodsAndOverrides);
-    var floatFieldClass = floatFieldProjection(packageName, main, floatMethodsAndOverrides);
-    var boolFieldClass = boolFieldProjection(packageName, main, booleanMethodsAndOverrides);
+        fieldNumberComparableProjections(packageName, comparable, numberMethods);
+    var numberFieldClass = fieldNumberProjections(packageName, main, numberMethods);
+    var stringFieldClass = stringFieldProjection(packageName, main, stringMethods);
+    var intFieldClass = intFieldProjection(packageName, main, intMethods);
+    var floatFieldClass = floatFieldProjection(packageName, main, floatMethods);
+    var boolFieldClass = boolFieldProjection(packageName, main, booleanMethods);
 
     return List.of(
         main,
@@ -206,22 +206,23 @@ public class ProjectionProcessor extends AbstractProcessor {
     potentialNewMethods.forEach(
         m -> {
           var params = getWrappedCallParameters(m, null);
-
-          var newM =
-              src.addMethod()
+          if (params.wrapped.stream().anyMatch(p -> p.contains("expr"))) {
+              var newM =
+                  src.addMethod()
                   .setName(m.getSimpleName().toString())
                   .setReturnType(m.getReturnType().toString())
                   .setBody(
-                      """
-                      return builder.%s(%s);
-                      """
+                          """
+                          return builder.%s(%s);
+                          """
                           .formatted(
                               m.getSimpleName(),
                               params.wrapped.stream().collect(Collectors.joining(", "))));
-          m.getTypeParameters().forEach(tp -> addTypeVariable(newM, tp));
+              m.getTypeParameters().forEach(tp -> addTypeVariable("Y", newM, tp));
 
-          params.wrapper.forEach(
-              p -> newM.addParameter(p.asType().toString(), p.getSimpleName().toString()));
+              params.wrapper.forEach(
+                      p -> newM.addParameter(p.asType().toString(), p.getSimpleName().toString()));
+          }
         });
 
     src.addMethod()
@@ -664,17 +665,20 @@ public class ProjectionProcessor extends AbstractProcessor {
     return "^jakarta\\.persistence\\.criteria\\.Expression<.*%s>".formatted(boundType);
   }
 
-  private void addTypeVariable(MethodSource<JavaClassSource> method, TypeParameterElement tp) {
-    var typeVariable = method.addTypeVariable(tp.getSimpleName().toString());
+  private void addTypeVariable(String classBound, MethodSource<JavaClassSource> method, TypeParameterElement tp) {
+      if (tp.getSimpleName().toString().equals(classBound)) {
+          return;
+      }
+      var typeVariable = method.addTypeVariable(tp.getSimpleName().toString());
 
-    var bounds =
-        tp.getBounds().stream()
-            .filter(bound -> !"java.lang.Object".equals(bound.toString()))
-            .map(Object::toString)
-            .collect(Collectors.toList());
+      var bounds =
+          tp.getBounds().stream()
+          .filter(bound -> !"java.lang.Object".equals(bound.toString()))
+          .map(Object::toString)
+          .collect(Collectors.toList());
 
-    if (!bounds.isEmpty()) {
-      typeVariable.setBounds(bounds.toArray(String[]::new));
-    }
+      if (!bounds.isEmpty()) {
+          typeVariable.setBounds(bounds.toArray(String[]::new));
+      }
   }
 }
