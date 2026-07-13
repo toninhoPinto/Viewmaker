@@ -102,7 +102,7 @@ public class PerProjectionClassCreator {
 
     private static String getClassOfAnnotatedProjection(Element e) {
         try {
-            return Objects.requireNonNull(e.getAnnotation(Project.class)).type().getCanonicalName();
+            return Objects.requireNonNull(e.getAnnotation(Projection.class)).type().getCanonicalName();
         } catch (MirroredTypeException ex) {
             return ex.getTypeMirror().toString();
         }

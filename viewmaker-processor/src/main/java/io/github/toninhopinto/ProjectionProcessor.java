@@ -55,7 +55,7 @@ public class ProjectionProcessor extends AbstractProcessor {
 
   @Override
   public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-    for (Element e : roundEnv.getElementsAnnotatedWith(Project.class)) {
+    for (Element e : roundEnv.getElementsAnnotatedWith(Projection.class)) {
       if (e.getKind() != ElementKind.RECORD) {
         messager.printMessage(Diagnostic.Kind.ERROR, "@Project can only be used on records", e);
         continue;
@@ -134,7 +134,7 @@ public class ProjectionProcessor extends AbstractProcessor {
     excludeFromBase.addAll(booleanMethods.stream().map(n->n.getSimpleName().toString()).toList());
     excludeFromBase.addAll(numberMethods.stream().map(n->n.getSimpleName().toString()).toList());
     excludeFromBase.addAll(collectionMethods.stream().map(n->n.getSimpleName().toString()).toList());
-    var excludeFromBaseMethods = excludeFromBase.stream().collect(Collectors.toSet());
+    var excludeFromBaseMethods = new HashSet<>(excludeFromBase);
 
     var main =
         fieldProjections(
