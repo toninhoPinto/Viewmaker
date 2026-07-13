@@ -35,7 +35,7 @@ import org.jboss.forge.roaster.Roaster;
 import org.jboss.forge.roaster.model.source.JavaClassSource;
 import org.jboss.forge.roaster.model.source.MethodSource;
 
-@SupportedAnnotationTypes("io.github.toninhopinto.Project")
+@SupportedAnnotationTypes("io.github.toninhopinto.Projection")
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
 @AutoService(Processor.class)
 public class ProjectionProcessor extends AbstractProcessor {
