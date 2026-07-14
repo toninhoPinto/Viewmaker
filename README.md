@@ -2,11 +2,11 @@
 
 Create projections for your JPA Entities at compile time.
 
-This basically is a learning project for me to understand how some libraries generate code at compile time (like avro, mapstruct, etc)
-
 So while working I kept trying to generate projections with quarkus and spring boot.
-And while there are some good options like .project(...), "select new ProjectionClass(...", these are all using reflection so I tried tackling compile time generation. 
+And while there are some good options like .project(...), "select new ProjectionClass(...", these are all using reflection so I tried tackling compile time generation of projection mapping. 
 I also generate some wrappers to functions of JPA Criteria API in order to get more fluent API.
+
+This basically is a learning project for me to understand how some libraries generate code at compile time (like avro, mapstruct, etc)
 
 ## How it looks with/without
 
@@ -34,7 +34,7 @@ By creating a record and annotating it with `@Projection`
 @Projection(type = Movie.class)
 public record MovieShort(String name, boolean animated){
 
-    public static String findAll = "select m.name as name from Movie m";
+    public static String findAll = "select m.name as name, m.is_animated as animated from Movie m";
 }
 ```
 
