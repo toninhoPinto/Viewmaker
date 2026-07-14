@@ -10,6 +10,101 @@ I also generate some wrappers to functions of JPA Criteria API in order to get m
 
 ## How it looks with/without
 
+Let's say we have this class:
+```java
+@Entity
+@Table(name = "movie")
+public class Movie {
+    @Id
+    private int id;
+    private String name;
+    private int score;
+    @Column(name="is_animated")
+    private boolean isAnimated;
+    @Column(name="duration_seconds")
+    private float durationSeconds;
+
+    public String getName() {
+        return name;
+    }
+}
+```
+By creating a record and annotating it with `@Projection`
+```java
+@Projection(type = Movie.class)
+public record MovieShort(String name, boolean animated){
+
+    public static String findAll = "select m.name as name from Movie m";
+}
+```
+
+
+Then you can do a query and receive as a Tuple (instead of directly MovieShort which would use reflection when using Hibernate), pass the result to projectResult and it will map the fields onto MovieShort.
+```java
+    @GET()
+    @Path("/generate")
+    public MovieDTO generate() {
+        var raw = em.createQuery(findAll, Tuple.class)
+                .getResultList();
+        return MovieShortProjection.projectResult(raw).stream()
+                .findFirst()
+                .map(b -> new MovieDTO(b.name()))
+                .orElseThrow(NotFoundException::new);
+    }
+```
+
+In case you don't want to use a string for a query, you can leverage JPA Criteria API
+
+```java
+// Where before you would have to create several objects like root, criteriaBuilder, etc
+    @GET()
+    @Path("/criteriaOriginal")
+    public MovieDTO criteriaOG() {
+        var cb = em.getCriteriaBuilder();
+
+        var criteriaQuery = cb.createQuery(MovieShort.class);
+        var root = criteriaQuery.from(Movie.class);
+
+        var name = root.get("name");
+        var animated = root.<Boolean>get("isAnimated");
+        var query = criteriaQuery
+                .select(cb.construct(MovieShort.class, name, animated))
+                .where(animated.equalTo(true))
+                .orderBy(cb.asc(name));
+
+        var result = em.createQuery(query).getResultList();
+
+        return result
+                .stream()
+                .findFirst()
+                .map(b -> new MovieDTO(b.name()))
+                .orElseThrow(NotFoundException::new);
+    }
+  // with the generated classes you can inject MovieShortProjection
+    private final EntityManager em;
+    private final MovieShortProjection movieProj;
+
+    public MovieController(EntityManager em, MovieShortProjection movieProj) {
+        this.em = em;
+        this.movieProj = movieProj;
+    }
+
+    @GET()
+    @Path("/criteriaGenerated")
+    public MovieDTO criteriaGen() {
+        var query = movieProj.buildProjectedQuery(em.getCriteriaBuilder()) //buildProjectedQuery will have the proper select 
+                .where(movieProj.animated().isTrue()) // you can use an fluent API without having to manage the instantiated Path fields
+                .orderBy(movieProj.name().asc());
+
+        var result = em.createQuery(query).getResultList(); //goes back to normal here
+
+        return projectResult(result)
+                .stream()
+                .findFirst()
+                .map(b -> new MovieDTO(b.name()))
+                .orElseThrow(NotFoundException::new);
+    }
+```
 
 
 ## How it works / Making your own Processor
