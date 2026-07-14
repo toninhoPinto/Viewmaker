@@ -24,7 +24,6 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -33,7 +32,6 @@ import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 import org.jboss.forge.roaster.Roaster;
 import org.jboss.forge.roaster.model.source.JavaClassSource;
-import org.jboss.forge.roaster.model.source.MethodSource;
 
 @SupportedAnnotationTypes("io.github.toninhopinto.Projection")
 @SupportedSourceVersion(SourceVersion.RELEASE_17)
@@ -659,15 +657,5 @@ public class ProjectionProcessor extends AbstractProcessor {
 
   private String replaceableExpressionPattern(String boundType) {
     return "^jakarta\\.persistence\\.criteria\\.Expression<.*%s>".formatted(boundType);
-  }
-
-  private void addTypeVariable(MethodSource<JavaClassSource> method, TypeParameterElement tp) {
-      var typeVariable = method.addTypeVariable(tp.getSimpleName().toString());
-
-      var bounds =
-          tp.getBounds().stream()
-          .filter(bound -> !"java.lang.Object".equals(bound.toString()))
-          .map(Object::toString)
-          .collect(Collectors.toList());
   }
 }
