@@ -144,3 +144,7 @@ From here it is just implement process(), I also used Roaster to give me an API 
 Another alternative would be templating.
 
 
+## todo
+
+Need to add tests (don't really want to compare strings, need to see best way to do this)
+Will add a module with an example project
